@@ -1,14 +1,13 @@
 from typing import Optional
 from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
-from pydantic import BaseModel
 from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 from sqlalchemy.orm import Session 
 from sqlalchemy.sql.functions import mode
-from . import models
+from . import models, schemas
 from .database import engine, get_db
 
 # Creates table
@@ -16,11 +15,6 @@ models.Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
-
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
 
 # Code for connect database
 while True:
@@ -51,11 +45,6 @@ def find_index_post(id):
 def root():
     return {"message": "Hello World"}
 
-@app.get("/sqlalchemy")
-def test_posts(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return {"status": posts}
-
 # Fetch all posts
 @app.get("/posts")
 def get_posts(db: Session = Depends(get_db)):
@@ -64,7 +53,7 @@ def get_posts(db: Session = Depends(get_db)):
 
 # create a new post
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post, db: Session = Depends(get_db)):
+def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     new_post = models.Post(**post.dict())
     db.add(new_post)
     db.commit()
@@ -93,7 +82,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 # Update a post with help of id
 @app.put("/posts/{id}")
-def update_posts(id: int, post: Post, db: Session = Depends(get_db)):
+def update_posts(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     post_query = db.query(models.Post).filter(models.Post.id == id)
     updated_post = post_query.first()
     if updated_post == None:
